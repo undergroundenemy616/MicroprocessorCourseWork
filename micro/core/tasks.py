@@ -1,4 +1,4 @@
-import cv2
+from cv2 import cv2
 import numpy as np
 from PIL import Image
 import os
@@ -6,7 +6,7 @@ from celery.decorators import task
 from time import sleep
 from .telegram_api import invoke_telegram
 from micro import settings
-import RPi.GPIO
+import RPi.GPIO as GPIO
 from .models import User
 import requests
 import time
@@ -26,11 +26,12 @@ def button_check():
     while True:
         input_state = GPIO.input(1)
         if not input_state:
-            cache.set('IS_FRIEND', True, timeout=None)
+            print('fuck')
+            settings.IS_FRIEND = True
             time_start = time.time()
             recognizer = cv2.face.LBPHFaceRecognizer_create()
-            recognizer.read('trainer/trainer.yml')
-            cascadePath = "haarcascade_frontalface_default.xml"
+            recognizer.read('/home/pi/python/MicroprocessorCourseWork/micro/core/trainer/trainer.yml')
+            cascadePath = '/home/pi/python/recognition/haarcascade_frontalface_default2.xml'
             faceCascade = cv2.CascadeClassifier(cascadePath);
 
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -50,11 +51,11 @@ def button_check():
             minW = 0.1 * cam.get(3)
             minH = 0.1 * cam.get(4)
 
-            sleep(1)
+            sleep(2)
 
             while True:
                 ret, img = cam.read()
-                img = cv2.flip(img, -1)  # Flip vertically
+                #img = cv2.flip(img, -1)  # Flip vertically
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
                 faces = faceCascade.detectMultiScale(
@@ -63,6 +64,8 @@ def button_check():
                     minNeighbors=5,
                     minSize=(int(minW), int(minH)),
                 )
+                
+                print(faces)
 
                 for (x, y, w, h) in faces:
                     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -70,7 +73,8 @@ def button_check():
 
                     # Check if confidence is less them 100 ==> "0" is perfect match
                     if (confidence < 100):
-                        id = User.objects.get(pk=id)
+                        user = User.objects.get(pk=id)
+                        print(user.name)
                         confidence = "  {0}%".format(round(100 - confidence))
                     else:
                         id = "unknown"
@@ -82,7 +86,7 @@ def button_check():
                     cv2.imwrite('image.jpg', img)
 
                     invoke_telegram('sendMessage', chat_id=settings.CHAT_ID,
-                                    text=f'Эта хуйня пытается зайти к вам домой, может являться {id} с вероятностью {confidence}, Открываем дверь? Да/Нет')
+                                    text=f'Это пытается зайти к вам домой, может являться {user.name} с вероятностью {confidence}, Открываем дверь? Да/Нет')
 
                     req = requests.post(
                         'https://api.telegram.org/bot%s/sendPhoto' % settings.TELEGRAM_BOT_TOKEN,
@@ -103,15 +107,17 @@ def button_check():
             cam.release()
             cv2.destroyAllWindows()
         sleep(1)
+    button_check.delay()
 
 
 @task(name="train")
 def train():
-    path = 'dataset'
+    path = '/home/pi/python/MicroprocessorCourseWork/micro/core/dataset/'
 
     recognizer = cv2.face.LBPHFaceRecognizer_create()
-    detector = cv2.CascadeClassifier("haarcascade_frontalface_default.xml");
-
+    #recognizer=cv2.face.EigenFaceRecognizer_create()
+    detector = cv2.CascadeClassifier('/home/pi/python/recognition/haarcascade_frontalface_default2.xml');
+    print('here we go')
     # function to get the images and label data
     def getImagesAndLabels(path):
         imagePaths = [os.path.join(path, f) for f in os.listdir(path)]
@@ -132,7 +138,7 @@ def train():
     recognizer.train(faces, np.array(ids))
 
     # Save the model into trainer/trainer.yml
-    recognizer.write('trainer/trainer.yml')  # recognizer.save() worked on Mac, but not on Pi
+    recognizer.write('/home/pi/python/MicroprocessorCourseWork/micro/core/trainer/trainer.yml')  # recognizer.save() worked on Mac, but not on Pi
     invoke_telegram('sendMessage', chat_id=settings.CHAT_ID,
                     text='Тренировка завершена, теперь вы есть в нашей базе')
     # Print the numer of faces trained and end program
@@ -212,16 +218,16 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
 class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
     allow_reuse_address = True
     daemon_threads = True
-
-@task(name="video_stream")
+    
+#@task(name="video_stream")
 def video_stream():
     with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
         output = StreamingOutput()
-        # Uncomment the next line to change your Pi's Camera rotation (in degrees)
-        # camera.rotation = 90
+        #Uncomment the next line to change your Pi's Camera rotation (in degrees)
+        #camera.rotation = 90
         camera.start_recording(output, format='mjpeg')
         try:
-            address = ('', 8000)
+            address = ('', 1337)
             server = StreamingServer(address, StreamingHandler)
             server.serve_forever()
         finally:

@@ -15,7 +15,7 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
+IS_FRIEND = None
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
@@ -114,7 +114,7 @@ USE_L10N = True
 
 USE_TZ = True
 
-URL = 'bfd0ed83b26a.ngrok.io'
+URL = '457cb05a664b.ngrok.io'
 TELEGRAM_BOT_TOKEN = '1406273835:AAEASMbmiNgKLQn8DZnNv9mnpRzERwE0rdg'
 CHAT_ID = 672542484
 IS_REGISTRATION = None
